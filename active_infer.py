@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from kuhn import KuhnPokerEnv
 import random
 
+
 class ActiveInferenceAgent:
     def __init__(self, env, encoder , initial_belief=None):
         """
