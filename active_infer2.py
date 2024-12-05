@@ -1,3 +1,9 @@
+##
+# Author:  
+# Description:  
+# LastEditors: Shiyuec
+# LastEditTime: 2024-12-04 23:24:34
+## 
 import torch
 import torch.nn as nn
 from kuhn_encode import KuhnPokerEncoder
@@ -106,15 +112,15 @@ class ActiveInferenceAgent:
         # 选择具有最小自由能的行动
         best_action = torch.argmin(G).item()
         # sG=torch.where(torch.isinf(G), torch.tensor(1e3), G)
-        temperature=1 #1e4 #! 为了数值好看，正常使用应删掉
+        temperature=1e5 #! 为了数值好看，正常使用应删掉
         sG = 1 / (G + 1e-10)*temperature
-        #action_prob = torch.softmax(sG,dim=0)
-        action_prob = sG/sG.sum()  #! 反向推断时用这个
+        action_prob = torch.softmax(sG,dim=0)
+        # action_prob = sG/sG.sum()
 
-        top_k_output = torch.topk(action_prob, 2, dim=0).indices.tolist()
-        for  k in top_k_output:
-            state = self.encoder.index_to_action.get(k, "未知动作")
-            print(f"高置信度动作:  {state}，概率 = {action_prob[k]:.6f}")
+        # top_k_output = torch.topk(action_prob, 3, dim=0).indices.tolist()
+        # for  k in top_k_output:
+        #     state = encoder.index_to_action.get(k, "未知动作")
+        #     print(f"高置信度动作:  {state}，概率 = {action_prob[k]:.6f}")
 
 
 
@@ -245,36 +251,40 @@ if __name__ == "__main__":
 
     # 初始化主动推理代理
     agent = ActiveInferenceAgent( encoder=encoder)
+    agent2 = ActiveInferenceAgent( encoder=encoder)
     num_episodes = 10000
     max_steps = 10
     player_reward=[0,0] #agent opp
     for episode in range(num_episodes):
-        print(f"=== Episode {episode + 1} ===")
+        #print(f"=== Episode {episode + 1} ===")
         observation = env.reset()
         agent.reset_belief()  # 重置信念
+        agent2.reset_belief()  # 重置信念
         fisrt=random.randint(0, 1)  #0 则agent先手，1反之 
         agent.update_belief(env.get_agent_observation(fisrt))
+        agent2.update_belief(env.get_agent_observation(1-fisrt))
         done = False
         step = 0
        
         while not done and step < max_steps:
             step += 1
             print(f"Turn {step}:")
-            print(f"  Observation: {observation}")
+            #print(f"  Observation: {observation}")
             valid_actions = env.get_valid_actions()
 
             if (fisrt+step)%2==1:
-                print("  Agent act")
+                #print("  Agent act")
                 # 代理选择行动
                 action,_ = agent.action(observation=observation, valid_actions=valid_actions)
             else:
-                print("  Oppoent act")
-                action=random.choice(valid_actions)
+                #print("  Oppoent act")
+                action,_ = agent2.action(observation=observation, valid_actions=valid_actions)
 
             # 执行动作，获取环境反馈（假设环境处理对手的动作并返回下一观测）
             next_observation, reward, done, info = env.step(action)
             # 输出当前步的信息
             agent.update_belief(env.get_agent_observation(fisrt))
+            agent2.update_belief(env.get_agent_observation(1-fisrt))
             # print(f"  Action: {action}")
             # print(f"  Reward: {reward}")
             # print(f"  Done: {done}")
